@@ -2,6 +2,8 @@
 
 This Spring Boot application provides a messaging service that publishes 1000 messages to an MQ queue and consumes them with a concurrency of 5 listeners.
 
+![alt text](dashboard.png)
+
 ## Features
 
 - **GET Endpoint**: `/api/messages/publish` - Publishes 1000 messages to the queue
