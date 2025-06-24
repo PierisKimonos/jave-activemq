@@ -1,0 +1,193 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Demo MQ Service - ActiveMQ Metrics",
+    "tags": ["demo", "activemq", "queue"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "schemaVersion": 30,
+    "version": 1,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Queue Depth",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "activemq_artemis_queue_MessageCount{queue=\"demo.queue\"}",
+            "legendFormat": "Messages in Queue",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 100 },
+                { "color": "red", "value": 500 }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "Messages Enqueued",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(activemq_artemis_queue_MessagesAdded{queue=\"demo.queue\"}[5m])",
+            "legendFormat": "Enqueued/sec",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 10 },
+                { "color": "red", "value": 50 }
+              ]
+            },
+            "unit": "reqps"
+          }
+        },
+        "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 }
+      },
+      {
+        "id": 3,
+        "title": "Messages Dequeued",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(activemq_artemis_queue_MessagesAcknowledged{queue=\"demo.queue\"}[5m])",
+            "legendFormat": "Dequeued/sec",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 10 },
+                { "color": "red", "value": 50 }
+              ]
+            },
+            "unit": "reqps"
+          }
+        },
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 }
+      },
+      {
+        "id": 4,
+        "title": "Consumer Count",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "activemq_artemis_queue_ConsumerCount{queue=\"demo.queue\"}",
+            "legendFormat": "Active Consumers",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": null },
+                { "color": "yellow", "value": 1 },
+                { "color": "green", "value": 5 }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 }
+      },
+      {
+        "id": 5,
+        "title": "Queue Depth Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "activemq_artemis_queue_MessageCount{queue=\"demo.queue\"}",
+            "legendFormat": "Messages in Queue",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [{ "label": "Message Count", "min": 0 }, { "show": false }],
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 }
+      },
+      {
+        "id": 6,
+        "title": "Message Throughput",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(activemq_artemis_queue_MessagesAdded{queue=\"demo.queue\"}[1m]) * 60",
+            "legendFormat": "Enqueued/min",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(activemq_artemis_queue_MessagesAcknowledged{queue=\"demo.queue\"}[1m]) * 60",
+            "legendFormat": "Dequeued/min",
+            "refId": "B"
+          }
+        ],
+        "yAxes": [{ "label": "Messages/min", "min": 0 }, { "show": false }],
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 }
+      },
+      {
+        "id": 7,
+        "title": "Broker Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "activemq_artemis_broker_MemoryUsage",
+            "legendFormat": "Memory Usage %",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          { "label": "Memory %", "min": 0, "max": 100 },
+          { "show": false }
+        ],
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 17 }
+      },
+      {
+        "id": 8,
+        "title": "Connection Count",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "activemq_artemis_acceptor_ConnectionsCreated",
+            "legendFormat": "Total Connections",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [{ "label": "Connections", "min": 0 }, { "show": false }],
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 17 }
+      }
+    ],
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    }
+  }
+}

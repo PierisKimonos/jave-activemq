@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ActiveMQ Demo - Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e6ed;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e8ecef;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stats-card h3 {
+            color: #2c3e50;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+            display: flex;
+            align-items: center;
+        }
+        
+        .stats-card h3::before {
+            content: '📊';
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .connection-pool h3::before { content: '🔗'; }
+        .session-details h3::before { content: '🔄'; }
+        .jms-config h3::before { content: '⚙️'; }
+        .parallel-processing h3::before { content: '⚡'; }
+        .broker-stats h3::before { content: '🖥️'; }
+        
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            color: #5a6c7d;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        
+        .metric-value {
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+        
+        .status-good { background-color: #27ae60; }
+        .status-warning { background-color: #f39c12; }
+        .status-error { background-color: #e74c3c; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .charts-section {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e8ecef;
+        }
+        
+        .chart-card h4 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        
+        .refresh-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .auto-refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #3498db;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #3498db;
+            font-style: italic;
+        }
+        
+        .error-message {
+            background-color: #ffe6e6;
+            border: 1px solid #ffcccc;
+            color: #d63031;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>🚀 ActiveMQ Demo Dashboard</h1>
+            <p class="subtitle">Real-time monitoring of JMS connections, sessions, and message processing</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+          <div class="refresh-controls">
+            <button class="refresh-btn" onclick="refreshStats()">🔄 Refresh Now</button>
+            <button class="refresh-btn" onclick="resetParallelStats()" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🔄 Reset Parallel Stats</button>
+            <div class="auto-refresh-toggle">
+                <label for="autoRefresh">Auto-refresh (5s):</label>
+                <label class="switch">
+                    <input type="checkbox" id="autoRefresh" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="loading" id="loadingIndicator">Loading...</div>
+        </div>
+        
+        <div class="stats-grid">
+            <!-- Connection Pool Stats -->
+            <div class="stats-card connection-pool">
+                <h3>Connection Pool</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Active Connections</span>
+                    <span class="metric-value" id="activeConnections">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Max Connections</span>
+                    <span class="metric-value" id="maxConnections">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Usage</span>
+                    <span class="metric-value" id="connectionUsage">-</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="connectionProgress" style="width: 0%"></div>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Max Sessions/Connection</span>
+                    <span class="metric-value" id="maxSessionsPerConnection">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Idle Timeout</span>
+                    <span class="metric-value" id="idleTimeout">-</span>
+                </div>
+            </div>
+            
+            <!-- Session Details -->
+            <div class="stats-card session-details">
+                <h3>Session Details</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Active Sessions</span>
+                    <span class="metric-value" id="activeSessions">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Cached Sessions</span>
+                    <span class="metric-value" id="cachedSessions">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Active Consumers</span>
+                    <span class="metric-value" id="activeConsumers">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Active Producers</span>
+                    <span class="metric-value" id="activeProducers">-</span>
+                </div>
+            </div>
+            
+            <!-- JMS Configuration -->
+            <div class="stats-card jms-config">
+                <h3>JMS Configuration</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Concurrency Range</span>
+                    <span class="metric-value" id="concurrencyRange">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Min Concurrency</span>
+                    <span class="metric-value" id="minConcurrency">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Max Concurrency</span>
+                    <span class="metric-value" id="maxConcurrency">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Consumed Messages</span>
+                    <span class="metric-value" id="consumedMessageCount">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Processed Messages</span>
+                    <span class="metric-value" id="processedMessageCount">-</span>
+                </div>
+            </div>
+            
+            <!-- Parallel Processing -->
+            <div class="stats-card parallel-processing">
+                <h3>Parallel Processing</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Currently Processing</span>
+                    <span class="metric-value" id="activeProcessingCount">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Peak Concurrent</span>
+                    <span class="metric-value" id="peakConcurrentProcessing">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Total Processed</span>
+                    <span class="metric-value" id="totalProcessedMessages">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Avg Processing Time</span>
+                    <span class="metric-value" id="averageProcessingTimeMs">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Active Threads</span>
+                    <span class="metric-value" id="activeThreadCount">-</span>
+                </div>
+            </div>
+            
+            <!-- Broker Stats -->
+            <div class="stats-card broker-stats">
+                <h3>Broker Statistics</h3>
+                <div class="metric-row">
+                    <span class="metric-label">Broker Status</span>
+                    <span class="metric-value" id="brokerStatus">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Broker Connections</span>
+                    <span class="metric-value" id="brokerConnectionCount">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Total Consumers</span>
+                    <span class="metric-value" id="totalConsumerCount">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Total Messages</span>
+                    <span class="metric-value" id="totalMessageCount">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Queue Messages</span>
+                    <span class="metric-value" id="queueMessageCount">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Queue Consumers</span>
+                    <span class="metric-value" id="queueConsumerCount">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Messages Added</span>
+                    <span class="metric-value" id="messagesAdded">-</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Messages Acknowledged</span>
+                    <span class="metric-value" id="messagesAcknowledged">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h4>📈 Message Processing Over Time</h4>
+                <canvas id="messageChart" width="400" height="200"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>⚡ Parallel Processing Activity</h4>
+                <canvas id="parallelChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        
+        <div class="timestamp">
+            Last updated: <span id="lastUpdated">Never</span>
+        </div>
+    </div>
+
+    <script>
+        let messageChart, parallelChart;
+        let messageData = [];
+        let parallelData = [];
+        let timeLabels = [];
+        let autoRefreshInterval;
+        
+        // Initialize charts
+        function initCharts() {
+            const messageCtx = document.getElementById('messageChart').getContext('2d');
+            const parallelCtx = document.getElementById('parallelChart').getContext('2d');
+            
+            messageChart = new Chart(messageCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [{
+                        label: 'Processed Messages',
+                        data: messageData,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            parallelChart = new Chart(parallelCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [{
+                        label: 'Active Processing',
+                        data: parallelData,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Fetch stats from API
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/monitoring/all-stats');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                throw error;
+            }
+        }
+        
+        // Update UI with new stats
+        function updateUI(stats) {
+            // Connection Pool
+            const connPool = stats.connectionPool || {};
+            document.getElementById('activeConnections').textContent = connPool.activeConnections || 0;
+            document.getElementById('maxConnections').textContent = connPool.maxConnections || 0;
+            document.getElementById('connectionUsage').textContent = (connPool.usagePercentage || 0) + '%';
+            document.getElementById('maxSessionsPerConnection').textContent = connPool.maxSessionsPerConnection || 0;
+            document.getElementById('idleTimeout').textContent = (connPool.idleTimeout || 0) + 'ms';
+            
+            // Update progress bar
+            const usage = connPool.usagePercentage || 0;
+            document.getElementById('connectionProgress').style.width = usage + '%';
+            
+            // Session Details
+            const sessionDetails = stats.sessionDetails || {};
+            document.getElementById('activeSessions').textContent = sessionDetails.activeSessions || 0;
+            document.getElementById('cachedSessions').textContent = sessionDetails.cachedSessions || 0;
+            document.getElementById('activeConsumers').textContent = sessionDetails.activeConsumers || 0;
+            document.getElementById('activeProducers').textContent = sessionDetails.activeProducers || 0;
+            
+            // JMS Config
+            const jmsConfig = stats.jmsConfig || {};
+            document.getElementById('concurrencyRange').textContent = jmsConfig.concurrencyRange || '-';
+            document.getElementById('minConcurrency').textContent = jmsConfig.minConcurrency || 0;
+            document.getElementById('maxConcurrency').textContent = jmsConfig.maxConcurrency || 0;
+            document.getElementById('consumedMessageCount').textContent = jmsConfig.consumedMessageCount || 0;
+            document.getElementById('processedMessageCount').textContent = jmsConfig.processedMessageCount || 0;
+              // Parallel Processing
+            const parallelProcessing = stats.parallelProcessing || {};
+            const activeCount = parallelProcessing.activeProcessingCount || 0;
+            
+            // Handle negative values with warning indication
+            if (activeCount < 0) {
+                document.getElementById('activeProcessingCount').innerHTML = 
+                    `<span style="color: #e74c3c;">${activeCount} ⚠️</span>`;
+            } else {
+                document.getElementById('activeProcessingCount').textContent = activeCount;
+            }
+            
+            document.getElementById('peakConcurrentProcessing').textContent = parallelProcessing.peakConcurrentProcessing || 0;
+            document.getElementById('totalProcessedMessages').textContent = parallelProcessing.totalProcessedMessages || 0;
+            document.getElementById('averageProcessingTimeMs').textContent = (parallelProcessing.averageProcessingTimeMs || 0) + 'ms';
+            document.getElementById('activeThreadCount').textContent = parallelProcessing.activeThreadCount || 0;
+            
+            // Broker Stats
+            const broker = stats.broker || {};
+            const brokerStatus = broker.isValid ? 'Connected' : 'Disconnected';
+            const statusClass = broker.isValid ? 'status-good' : 'status-error';
+            document.getElementById('brokerStatus').innerHTML = brokerStatus + ` <span class="status-indicator ${statusClass}"></span>`;
+            document.getElementById('brokerConnectionCount').textContent = broker.connectionCount || 0;
+            document.getElementById('totalConsumerCount').textContent = broker.totalConsumerCount || 0;
+            document.getElementById('totalMessageCount').textContent = broker.totalMessageCount || 0;
+            document.getElementById('queueMessageCount').textContent = broker.queueMessageCount || 0;
+            document.getElementById('queueConsumerCount').textContent = broker.queueConsumerCount || 0;
+            document.getElementById('messagesAdded').textContent = broker.messagesAdded || 0;
+            document.getElementById('messagesAcknowledged').textContent = broker.messagesAcknowledged || 0;
+            
+            // Update charts
+            updateCharts(jmsConfig.processedMessageCount || 0, parallelProcessing.activeProcessingCount || 0);
+            
+            // Update timestamp
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+            
+            // Hide error message if stats loaded successfully
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+        
+        // Update charts with new data
+        function updateCharts(processedMessages, activeProcessing) {
+            const now = new Date().toLocaleTimeString();
+            
+            // Limit data points to last 20 entries
+            if (timeLabels.length >= 20) {
+                timeLabels.shift();
+                messageData.shift();
+                parallelData.shift();
+            }
+            
+            timeLabels.push(now);
+            messageData.push(processedMessages);
+            parallelData.push(activeProcessing);
+            
+            messageChart.update();
+            parallelChart.update();
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = `Error: ${message}`;
+            errorDiv.style.display = 'block';
+        }
+          // Refresh stats
+        async function refreshStats() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            try {
+                loadingIndicator.style.display = 'block';
+                const stats = await fetchStats();
+                updateUI(stats);
+            } catch (error) {
+                showError('Failed to fetch monitoring data. Please check if the service is running.');
+                console.error('Failed to refresh stats:', error);
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+        
+        // Reset parallel processing stats
+        async function resetParallelStats() {
+            try {
+                const response = await fetch('/api/monitoring/parallel-processing/reset-all', {
+                    method: 'GET'
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                console.log('Reset result:', result);
+                
+                // Refresh stats after reset
+                setTimeout(refreshStats, 500);
+                
+                // Show success message
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.style.backgroundColor = '#d4edda';
+                errorDiv.style.borderColor = '#c3e6cb';
+                errorDiv.style.color = '#155724';
+                errorDiv.textContent = 'Parallel processing statistics reset successfully!';
+                errorDiv.style.display = 'block';
+                
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+                
+            } catch (error) {
+                showError('Failed to reset parallel processing statistics.');
+                console.error('Failed to reset stats:', error);
+            }
+        }
+        
+        // Setup auto-refresh
+        function setupAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            
+            function startAutoRefresh() {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                }
+                autoRefreshInterval = setInterval(refreshStats, 5000);
+            }
+            
+            function stopAutoRefresh() {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+            
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+            
+            // Start auto-refresh by default
+            if (checkbox.checked) {
+                startAutoRefresh();
+            }
+        }
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            setupAutoRefresh();
+            refreshStats(); // Initial load
+        });
+    </script>
+</body>
+</html>

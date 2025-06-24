@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Spring Boot Application
+  - job_name: 'spring-boot-app'
+    static_configs:
+      - targets: ['host.docker.internal:8080']  # For apps running on host
+        labels:
+          service: 'demo-app'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+
+  # Spring Boot App in Docker (when using --profile app)
+  - job_name: 'spring-boot-app-docker'
+    static_configs:
+      - targets: ['demo-app:8080']
+        labels:
+          service: 'demo-app-docker'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+
+  # ActiveMQ JMX Metrics via JMX Exporter
+  - job_name: 'activemq-jmx'
+    static_configs:
+      - targets: ['jmx-exporter:9404']
+        labels:
+          service: 'activemq'
+    scrape_interval: 15s
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

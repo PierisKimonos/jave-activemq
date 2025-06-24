@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <!-- Application loggers -->
+    <logger name="io.reflectoring.demo" level="INFO"/>
+    
+    <!-- Reduce ActiveMQ log noise - specifically the optimized ack messages -->
+    <logger name="org.apache.activemq.ActiveMQMessageConsumer" level="WARN"/>
+    <logger name="org.apache.activemq.ActiveMQSession" level="WARN"/>
+    <logger name="org.apache.activemq.transport" level="WARN"/>
+    
+    <!-- Keep important ActiveMQ logs -->
+    <logger name="org.apache.activemq.broker" level="INFO"/>
+    <logger name="org.apache.activemq.transport.failover" level="INFO"/>
+    
+    <!-- Spring JMS logging -->
+    <logger name="org.springframework.jms" level="INFO"/>
+</configuration>

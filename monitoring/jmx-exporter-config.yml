@@ -1,0 +1,39 @@
+---
+startDelaySeconds: 10
+jmxUrl: service:jmx:rmi:///jndi/rmi://activemq:1099/jmxrmi
+
+rules:
+  # Broker metrics
+  - pattern: "org.apache.activemq.artemis<broker=\"([^\"]+)\".*><>([^:]+)"
+    name: activemq_artemis_$2
+    labels:
+      broker: $1
+
+  # Address metrics  
+  - pattern: "org.apache.activemq.artemis<broker=\"([^\"]+)\",component=addresses,address=\"([^\"]+)\".*><>([^:]+)"
+    name: activemq_artemis_address_$3
+    labels:
+      broker: $1
+      address: $2
+
+  # Queue metrics
+  - pattern: "org.apache.activemq.artemis<broker=\"([^\"]+)\",component=addresses,address=\"([^\"]+)\",subcomponent=queues,routing-type=\"([^\"]+)\",queue=\"([^\"]+)\".*><>([^:]+)"
+    name: activemq_artemis_queue_$5
+    labels:
+      broker: $1
+      address: $2
+      routing_type: $3
+      queue: $4
+
+  # Connection metrics
+  - pattern: "org.apache.activemq.artemis<broker=\"([^\"]+)\",component=acceptors,name=\"([^\"]+)\".*><>([^:]+)"
+    name: activemq_artemis_acceptor_$3
+    labels:
+      broker: $1
+      acceptor: $2
+
+  # General broker info
+  - pattern: "org.apache.activemq.artemis<broker=\"([^\"]+)\".*><>(.*)"
+    name: activemq_artemis_broker_$2
+    labels:
+      broker: $1

@@ -1,0 +1,121 @@
+services:
+  # ActiveMQ Artemis Message Broker - Simple Setup
+  activemq:
+    image: apache/activemq-artemis:latest
+    container_name: demo-activemq
+    ports:
+      - "61616:61616" # JMS/OpenWire port
+      - "8161:8161" # Web console port
+      - "5672:5672" # AMQP port
+      - "1099:1099" # JMX port (for monitoring)
+    environment:
+      ARTEMIS_USER: admin
+      ARTEMIS_PASSWORD: admin
+      # Basic JMX configuration
+      JAVA_ARGS: >-
+        -Dcom.sun.management.jmxremote=true
+        -Dcom.sun.management.jmxremote.port=1099
+        -Dcom.sun.management.jmxremote.rmi.port=1099
+        -Dcom.sun.management.jmxremote.ssl=false
+        -Dcom.sun.management.jmxremote.authenticate=false
+        -Djava.rmi.server.hostname=localhost
+    volumes:
+      # Mount authentication configuration files with hawtio support
+      - ./artemis-config/artemis-users.properties:/var/lib/artemis-instance/etc/artemis-users.properties:ro
+      - ./artemis-config/artemis-roles.properties:/var/lib/artemis-instance/etc/artemis-roles.properties:ro
+      - ./artemis-config/login.config:/var/lib/artemis-instance/etc/login.config:ro
+    networks:
+      - demo-network
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -an | grep :8161 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Optional: If you want to run your Spring Boot app in Docker too
+  demo-app:
+    build: .
+    container_name: demo-spring-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_ACTIVEMQ_BROKER_URL: tcp://activemq:61616
+      SPRING_ACTIVEMQ_USER: admin
+      SPRING_ACTIVEMQ_PASSWORD: admin
+    depends_on:
+      activemq:
+        condition: service_healthy
+    networks:
+      - demo-network
+    profiles:
+      - app # Use profile to optionally start the app
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: demo-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
+    networks:
+      - demo-network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: demo-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - demo-network
+    profiles:
+      - monitoring
+
+  # JMX Exporter for ActiveMQ metrics
+  jmx-exporter:
+    image: bitnami/jmx-exporter:latest
+    container_name: demo-jmx-exporter
+    ports:
+      - "9404:9404"
+    volumes:
+      - ./monitoring/jmx-exporter-config.yml:/opt/bitnami/jmx-exporter/config.yml
+    command:
+      - "9404"
+      - "/opt/bitnami/jmx-exporter/config.yml"
+    depends_on:
+      - activemq
+    networks:
+      - demo-network
+    profiles:
+      - monitoring
+
+volumes:
+  activemq_data:
+    driver: local
+  activemq_logs:
+    driver: local
+  prometheus_data:
+  grafana_data:
+
+networks:
+  demo-network:
+    driver: bridge

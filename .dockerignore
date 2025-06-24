@@ -1,0 +1,16 @@
+# Docker ignore file for Spring Boot project
+target/
+.mvn/
+mvnw
+mvnw.cmd
+.git/
+.gitignore
+README.md
+*.md
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db

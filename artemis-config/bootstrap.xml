@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<broker xmlns="http://activemq.org/schema">
+   <jaas-security domain="activemq"/>
+   <server configuration="file:/var/lib/artemis-instance/etc/broker.xml"/>
+   <web path="web">
+      <binding uri="http://0.0.0.0:8161">
+         <app url="console" war="console.war"/>
+      </binding>
+   </web>
+</broker>
